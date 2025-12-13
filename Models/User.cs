@@ -13,7 +13,7 @@ namespace FinanceTracker.Api.Models
 
         [Required]
         [MaxLength(100)]
-        public string Fullname { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
 
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
