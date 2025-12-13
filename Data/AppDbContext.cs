@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using FinanceTracker.Api.Models;
 
 namespace FinanceTracker.Api.Data
 {
@@ -9,5 +10,7 @@ namespace FinanceTracker.Api.Data
         }
 
         // Db sets will go here later :))
+        public DbSet<User> Users { get; set; }
+
     }
 }
