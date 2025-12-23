@@ -17,6 +17,10 @@ namespace FinanceTracker.Api.Data.Configurations
             builder.Property(e => e.Date)
                    .IsRequired();
 
+              
+            builder.Property(e => e.Type)
+                   .IsRequired();
+       
             builder.Property(e => e.Description)
                    .HasMaxLength(500);
 
@@ -29,6 +33,12 @@ namespace FinanceTracker.Api.Data.Configurations
                    .WithMany()
                    .HasForeignKey(e => e.CategoryId)
                    .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Property(e => e.CreatedAt)
+                   .IsRequired();
+
+            builder.Property(e => e.UpdatedAt);
+
         }
     }
 }

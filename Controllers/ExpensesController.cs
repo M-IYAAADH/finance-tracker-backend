@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using FinanceTracker.Api.Data;
 using FinanceTracker.Api.Domain;
 using FinanceTracker.Api.DTOs.Expenses;
-
+using FinanceTracker.Api.DTOs.Common;
 
 namespace FinanceTracker.Api.Controllers
 {
@@ -29,18 +29,47 @@ namespace FinanceTracker.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetExpenses()
+        public async Task<IActionResult> GetExpenses(
+            int page = 1,
+            int pageSize = 20)
         {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 50) pageSize = 50;
+
             var userId = GetUserId();
 
-            var expenses = await _context.Expenses
+            var query = _context.Expenses
                 .Where(e => e.UserId == userId)
                 .Include(e => e.Category)
-                .OrderByDescending(e => e.Date)
+                .OrderByDescending(e => e.Date);
+
+            var totalCount = await query.CountAsync();
+
+            var expenses = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(e => new ExpenseResponseDto
+                {
+                    Id = e.Id,
+                    Amount = e.Amount,
+                    Date = e.Date,
+                    Description = e.Description,
+                    Category = e.Category.Name,
+                    Type = (int)e.Type
+                })
                 .ToListAsync();
 
-            return Ok(expenses);
+            return Ok(new
+            {
+                page,
+                pageSize,
+                totalCount,
+                items = expenses
+            });
         }
+
+
         [HttpPost]
         public async Task<IActionResult> CreateExpense(CreateExpenseDto dto)
         {
@@ -48,14 +77,29 @@ namespace FinanceTracker.Api.Controllers
 
             // Validate amount
             if (dto.Amount <= 0)
-                return BadRequest("Amount must be greater than zero.");
+                return BadRequest(new ErrorResponseDto
+                {
+                    Error = "ValidationError",
+                    Message = "Amount must be greater than zero."
+                });
 
             // Validate category belongs to user
             var categoryExists = await _context.Categories.AnyAsync(c =>
                 c.Id == dto.CategoryId && c.UserId == userId);
 
             if (!categoryExists)
-                return BadRequest("Invalid category.");
+                return BadRequest(new ErrorResponseDto
+                {
+                    Error = "ValidationError",
+                    Message = "Amount must be greater than zero."
+                });
+
+            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
+                return BadRequest(new ErrorResponseDto
+                {
+                    Error = "ValidationError",
+                    Message = "Amount must be greater than zero."
+                });
 
             var expense = new Expense
             {
@@ -64,7 +108,9 @@ namespace FinanceTracker.Api.Controllers
                 Date = dto.Date,
                 Description = dto.Description,
                 CategoryId = dto.CategoryId,
-                UserId = userId
+                UserId = userId,
+                Type = (TransactionType)dto.Type,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Expenses.Add(expense);
@@ -88,6 +134,11 @@ namespace FinanceTracker.Api.Controllers
             if (expense == null)
                 return NotFound("Expense not found.");
 
+            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
+                return BadRequest("Invalid transaction type.");
+
+            expense.Type = (TransactionType)dto.Type;
+
             // Validate category ownership
             var categoryExists = await _context.Categories.AnyAsync(c =>
                 c.Id == dto.CategoryId && c.UserId == userId);
@@ -99,6 +150,7 @@ namespace FinanceTracker.Api.Controllers
             expense.Date = dto.Date;
             expense.CategoryId = dto.CategoryId;
             expense.Description = dto.Description;
+            expense.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -155,6 +207,79 @@ namespace FinanceTracker.Api.Controllers
                 year,
                 month,
                 total
+            });
+        }
+
+        [HttpGet("monthly/income")]
+        public async Task<IActionResult> GetMonthlyIncome(int year, int month)
+        {
+            var userId = GetUserId();
+
+            var totalIncome = await _context.Expenses
+                .Where(e =>
+                    e.UserId == userId &&
+                    e.Type == TransactionType.Income &&
+                    e.Date.Year == year &&
+                    e.Date.Month == month)
+                .SumAsync(e => e.Amount);
+
+            return Ok(new
+            {
+                year,
+                month,
+                income = totalIncome
+            });
+        }
+
+        [HttpGet("monthly/expense")]
+        public async Task<IActionResult> GetMonthlyExpense(int year, int month)
+        {
+            var userId = GetUserId();
+
+            var totalExpense = await _context.Expenses
+                .Where(e =>
+                    e.UserId == userId &&
+                    e.Type == TransactionType.Expense &&
+                    e.Date.Year == year &&
+                    e.Date.Month == month)
+                .SumAsync(e => e.Amount);
+
+            return Ok(new
+            {
+                year,
+                month,
+                expense = totalExpense
+            });
+        }
+
+        [HttpGet("monthly/summary")]
+        public async Task<IActionResult> GetMonthlySummary(int year, int month)
+        {
+            var userId = GetUserId();
+
+            var income = await _context.Expenses
+                .Where(e =>
+                    e.UserId == userId &&
+                    e.Type == TransactionType.Income &&
+                    e.Date.Year == year &&
+                    e.Date.Month == month)
+                .SumAsync(e => e.Amount);
+
+            var expense = await _context.Expenses
+                .Where(e =>
+                    e.UserId == userId &&
+                    e.Type == TransactionType.Expense &&
+                    e.Date.Year == year &&
+                    e.Date.Month == month)
+                .SumAsync(e => e.Amount);
+
+            return Ok(new
+            {
+                year,
+                month,
+                income,
+                expense,
+                balance = income - expense
             });
         }
 
