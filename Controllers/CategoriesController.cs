@@ -116,5 +116,25 @@ namespace FinanceTracker.Api.Controllers
             return Ok(category);
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCategory(Guid id)
+        {
+            var userId = GetUserId();
+
+            var category = await _context.Categories
+                .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+
+            if (category == null)
+            {
+                return NotFound("Category not found.");
+            }
+
+            _context.Categories.Remove(category);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+                
+        }
+
     }
 }

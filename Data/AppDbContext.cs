@@ -14,6 +14,7 @@ namespace FinanceTracker.Api.Data
 
         // Db Sets
         public DbSet<User> Users { get; set; }
+        public DbSet<Expense> Expenses { get; set; }
         public DbSet<Category> Categories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -21,6 +22,7 @@ namespace FinanceTracker.Api.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.ApplyConfiguration(new CategoryConfiguration());
+            modelBuilder.ApplyConfiguration(new ExpenseConfiguration());
         }
     }
 }
