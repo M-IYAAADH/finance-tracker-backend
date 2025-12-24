@@ -4,9 +4,12 @@ using FinanceTracker.Api.Data;
 using FinanceTracker.Api.Services;
 using FinanceTracker.Api.Dtos;
 using FinanceTracker.Api.Models;
+using Microsoft.AspNetCore.RateLimiting;
+
 
 namespace FinanceTracker.Api.Controllers
 {
+    [EnableRateLimiting("auth")]
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
