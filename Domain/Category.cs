@@ -19,5 +19,9 @@ namespace FinanceTracker.Api.Domain
         public Guid UserId { get; set; }
 
         public User User { get; set; } = null!;
+
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
+  
     }
 }

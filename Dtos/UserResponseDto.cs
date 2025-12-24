@@ -1,4 +1,4 @@
-namespace FinanceTracker.Api.Dtos
+namespace FinanceTracker.Api.DTOs
 {
     public class UserResponseDto
     {

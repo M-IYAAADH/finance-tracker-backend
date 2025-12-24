@@ -5,6 +5,7 @@ using FinanceTracker.Api.Data;
 using FinanceTracker.Api.Domain;
 using FinanceTracker.Api.DTOs.Expenses;
 using FinanceTracker.Api.DTOs.Common;
+using FinanceTracker.Api.Services.Interfaces;
 
 namespace FinanceTracker.Api.Controllers
 {
@@ -13,11 +14,15 @@ namespace FinanceTracker.Api.Controllers
     [Authorize]
     public class ExpensesController : ControllerBase
     {
+        private readonly IExpenseService _expenseService;
         private readonly AppDbContext _context;
 
-        public ExpensesController(AppDbContext context)
+        public ExpensesController(
+            AppDbContext context,
+            IExpenseService expenseService)
         {
             _context = context;
+            _expenseService = expenseService;
         }
 
         private Guid GetUserId()
@@ -33,146 +38,53 @@ namespace FinanceTracker.Api.Controllers
             int page = 1,
             int pageSize = 20)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
-            if (pageSize > 50) pageSize = 50;
-
             var userId = GetUserId();
 
-            var query = _context.Expenses
-                .Where(e => e.UserId == userId)
-                .Include(e => e.Category)
-                .OrderByDescending(e => e.Date);
-
-            var totalCount = await query.CountAsync();
-
-            var expenses = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(e => new ExpenseResponseDto
-                {
-                    Id = e.Id,
-                    Amount = e.Amount,
-                    Date = e.Date,
-                    Description = e.Description,
-                    Category = e.Category.Name,
-                    Type = (int)e.Type
-                })
-                .ToListAsync();
-
-            return Ok(new
-            {
+            var result = await _expenseService.GetExpensesAsync(
+                userId,
                 page,
-                pageSize,
-                totalCount,
-                items = expenses
-            });
-        }
+                pageSize);
 
+            return Ok(result);
+        }
 
         [HttpPost]
         public async Task<IActionResult> CreateExpense(CreateExpenseDto dto)
         {
             var userId = GetUserId();
 
-            // Validate amount
-            if (dto.Amount <= 0)
-                return BadRequest(new ErrorResponseDto
-                {
-                    Error = "ValidationError",
-                    Message = "Amount must be greater than zero."
-                });
+            var result = await _expenseService.CreateExpenseAsync(userId, dto);
 
-            // Validate category belongs to user
-            var categoryExists = await _context.Categories.AnyAsync(c =>
-                c.Id == dto.CategoryId && c.UserId == userId);
-
-            if (!categoryExists)
-                return BadRequest(new ErrorResponseDto
-                {
-                    Error = "ValidationError",
-                    Message = "Amount must be greater than zero."
-                });
-
-            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
-                return BadRequest(new ErrorResponseDto
-                {
-                    Error = "ValidationError",
-                    Message = "Amount must be greater than zero."
-                });
-
-            var expense = new Expense
-            {
-                Id = Guid.NewGuid(),
-                Amount = dto.Amount,
-                Date = dto.Date,
-                Description = dto.Description,
-                CategoryId = dto.CategoryId,
-                UserId = userId,
-                Type = (TransactionType)dto.Type,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Expenses.Add(expense);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetExpenses), new { id = expense.Id }, expense);
+            return Ok(result);
         }
 
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateExpense(Guid id, UpdateExpenseDto dto)
+        public async Task<IActionResult> UpdateExpense(
+            Guid id,
+            UpdateExpenseDto dto)
         {
             var userId = GetUserId();
 
-            if (dto.Amount <= 0)
-                return BadRequest("Amount must be greater than zero.");
+            var result = await _expenseService.UpdateExpenseAsync(
+                userId,
+                id,
+                dto);
 
-            // Fetch expense owned by user
-            var expense = await _context.Expenses
-                .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
-
-            if (expense == null)
-                return NotFound("Expense not found.");
-
-            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
-                return BadRequest("Invalid transaction type.");
-
-            expense.Type = (TransactionType)dto.Type;
-
-            // Validate category ownership
-            var categoryExists = await _context.Categories.AnyAsync(c =>
-                c.Id == dto.CategoryId && c.UserId == userId);
-
-            if (!categoryExists)
-                return BadRequest("Invalid category.");
-
-            expense.Amount = dto.Amount;
-            expense.Date = dto.Date;
-            expense.CategoryId = dto.CategoryId;
-            expense.Description = dto.Description;
-            expense.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(expense);
+            return Ok(result);
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExpense(Guid id)
         {
             var userId = GetUserId();
 
-            var expense = await _context.Expenses
-                .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
-
-            if (expense == null)
-                return NotFound("Expense not found.");
-
-            _context.Expenses.Remove(expense);
-            await _context.SaveChangesAsync();
+            await _expenseService.DeleteExpenseAsync(userId, id);
 
             return NoContent();
         }
+
         [HttpGet("monthly")]
         public async Task<IActionResult> GetMonthlyExpenses(int year, int month)
         {

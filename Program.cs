@@ -8,6 +8,9 @@ using Microsoft.OpenApi.Models;
 using FinanceTracker.Api.Middleware;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using FinanceTracker.Api.Services;
+using FinanceTracker.Api.Services.Interfaces;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,6 +105,9 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 });
+
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
+builder.Services.AddMemoryCache();
 
 
 var app = builder.Build();

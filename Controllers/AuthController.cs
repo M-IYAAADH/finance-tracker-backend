@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FinanceTracker.Api.Data;
 using FinanceTracker.Api.Services;
-using FinanceTracker.Api.Dtos;
+using FinanceTracker.Api.DTOs;
 using FinanceTracker.Api.Models;
 using Microsoft.AspNetCore.RateLimiting;
 

@@ -21,6 +21,12 @@ namespace FinanceTracker.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
+                modelBuilder.Entity<Expense>()
+                    .HasQueryFilter(e => !e.IsDeleted);
+
+                modelBuilder.Entity<Category>()
+                    .HasQueryFilter(c => !c.IsDeleted);
+
             modelBuilder.ApplyConfiguration(new CategoryConfiguration());
             modelBuilder.ApplyConfiguration(new ExpenseConfiguration());
         }
